@@ -19,6 +19,7 @@ import (
 	"github.com/anchore/syft/syft/pkg"
 	"github.com/anchore/syft/syft/pkg/cataloger/internal/unionreader"
 	"github.com/anchore/syft/syft/source"
+	"github.com/deitch/magic/pkg/magic"
 )
 
 var emptyPURL = packageurl.PackageURL{}
@@ -121,6 +122,48 @@ func fileContentsVersionMatcher(pattern string) evidenceMatcher {
 
 		matchMetadata := internal.MatchNamedCaptureGroups(pat, string(contents))
 		return singlePackage(classifier, location, matchMetadata), nil
+	}
+}
+
+type versionFinder func([]string) string
+
+func fileTypeMatcher(filetype string, finder versionFinder) evidenceMatcher {
+	return func(resolver source.FileResolver, classifier classifier, location source.Location) ([]pkg.Package, error) {
+		reader, err := resolver.FileContentsByLocation(location)
+		if err != nil {
+			return nil, err
+		}
+		unionReader, err := unionreader.GetUnionReader(reader)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get union reader for file: %w", err)
+		}
+		magicType, err := magic.GetType(unionReader)
+		if err != nil {
+			return nil, fmt.Errorf("unable to get magic type for file: %w", err)
+		}
+		if len(magicType) < 1 || magicType[0] != filetype {
+			return nil, nil
+		}
+		var version string
+		if finder != nil {
+			version = finder(magicType)
+		}
+		matchMetadata := map[string]string{
+			"version": version,
+		}
+
+		return singlePackage(classifier, location, matchMetadata), nil
+	}
+}
+
+func prefixVersionFinder(prefix string) versionFinder {
+	return func(magicType []string) string {
+		for _, t := range magicType {
+			if strings.HasPrefix(t, prefix) {
+				return strings.TrimPrefix(t, prefix)
+			}
+		}
+		return ""
 	}
 }
 

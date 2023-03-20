@@ -270,6 +270,16 @@ var defaultClassifiers = []classifier{
 		PURL:    mustPURL("pkg:generic/ruby@version"),
 		CPEs:    singleCPE("cpe:2.3:a:ruby-lang:ruby:*:*:*:*:*:*:*:*"),
 	},
+	{
+		Class:    "linux-kernel",
+		FileGlob: "**/kernel*",
+		EvidenceMatcher: evidenceMatchers(
+			fileTypeMatcher("Linux kernel", prefixVersionFinder("version ")),
+		),
+		Package: "kernel",
+		PURL:    mustPURL("pkg:generic/linux-kernel@version"),
+		CPEs:    singleCPE("cpe:2.3:a:linux-kernel:kernel:*:*:*:*:*:*:*:*"),
+	},
 }
 
 // in both binaries and shared libraries, the version pattern is [NUL]3.11.2[NUL]
